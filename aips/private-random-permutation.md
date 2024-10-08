@@ -69,67 +69,21 @@ or additional complexity is needed to handle party disconnection.
 
 ```Move
 module 0x1::shuffle {
-    struct Item {
-        veiled_view: GroupElement,
+    struct Item;
+    struct Permutation;
 
-        /// If set, will be one of the `original_elements`.
-        public_view: Option<GroupElement>,
-
-        /// Maps a user public key to the corresponding view that allow the user to locally open it.
-        user_views: Table<GroupElement, GroupElement>,
-    }
-    
-    struct Permutation {
-        generator: GroupElement, // the G.
-        s_inv_g: GroupElement, // helper used in `reveal_item_to`.
-        original_elements: vector<GroupElement>, // fresh representations of item 0, 1, ...
-        shuffled_items: vector<Item>,
-        shuffling_state: ShufflingState, // internal states used by validators only.
-    }
-    
     /// Shuffle `0..n-1` and veil each element with a secret scalar shared between validators.
     /// Save the result under account `host`.
-    /// 
-    /// NOTE: async operation, result is delivered in the future.
-    public fun secure_shuffle(host: &signer, n: u64) {
-        // Example result permutation (n=3).
-        permutation.generator == G // sampled using on-chain randomness
-        permutation.original_elements == [A, B, C] // sampled using on-chain randomness
-        permutation.s_inv_g == s_inv * G // in reality it will be an async op!
-        permutation.shuffled_items == [s*C, s*A, s*B] // in reality it will be async ops!
-        // NOTE: `s` and `s_inv` are secret field element shared between validators.
-    }
+    public fun secure_shuffle(host: &signer, n: u64);
 
     /// From the permutation stored in `host`, publicly open the item at position `item_idx` using validator secret.
-    ///
-    /// NOTE: async operation, result is delivered in the future.
-    public fun reveal_item_publicly(host: &signer, item_idx: u64) {
-        let perm = borrow_global_mut<Permutation>(address_of(host));
-        let item = &mut perm.shuffled_items[item_idx];
-        *item.public_view = Some(s_inv * item.unveiled_view); // in reality it will be an async op!
-    }
-
+    public fun reveal_item_publicly(host: &signer, item_idx: u64);
     
     /// From the permutation stored in `host`, reveal the item at position `item_idx` to the whose has public key `epk`.
-    ///
-    /// NOTE: async operation, result is delivered in the future.
-    public fun reveal_item_privately(host: &signer, item_idx: u64, epk: GroupElement) {
-        // Charge gas in advance.
-        let perm = borrow_global_mut<Permutation>(address_of(host));
-        let item = &mut perm.shuffled_items[item_idx];
-        // `epk` will be `x*G` where only the the user knows `x`.
-        // item.user_views[epk] := secret_inv * (item.veiled_view + epk)
-        // The result is equivalent to `item.public_view + secret_inv * x * G`.
-        // User can locally unveil by computing `result - x * s_inv_g`.
-    }
+    public fun reveal_item_privately(host: &signer, item_idx: u64, epk: GroupElement);
     
     /// From the permutation stored in `host`, reveal the item at position `item_idx` with ZK proof from someone who has access.
-    public fun open_item(host: &signer, item_idx: u64, claim: GroupElement, proof: Proof) {
-        // verify proof with claim
-        let perm = borrow_global_mut<Permutation>(address_of(host));
-        let item = &mut perm.shuffled_items[item_idx];
-        item.public_view = Some(claim);
-    }
+    public fun open_item(host: &signer, item_idx: u64, claim: GroupElement, proof: Proof);
 
     //
     // Other helper functions.
